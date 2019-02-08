@@ -14,19 +14,20 @@ app = Flask(__name__)
 
 app.debug = True #Change this to False for production
 
-app.secret_key = os.environ['SECRET_KEY'] 
+app.secret_key = os.environ['SECRET_KEY']
 oauth = OAuth(app)
+oauth.init_app(app)
 
 
 github = oauth.remote_app(
     'github',
-    consumer_key=os.environ['GITHUB_CLIENT_ID'], 
+    consumer_key=os.environ['GITHUB_CLIENT_ID'],
     consumer_secret=os.environ['GITHUB_CLIENT_SECRET'],
     request_token_params={'scope': 'user:email'}, #request read-only access to the user's email.  For a list of possible scopes, see developer.github.com/apps/building-oauth-apps/scopes-for-oauth-apps
     base_url='https://api.github.com/',
     request_token_url=None,
     access_token_method='POST',
-    access_token_url='https://github.com/login/oauth/access_token',  
+    access_token_url='https://github.com/login/oauth/access_token',
     authorize_url='https://github.com/login/oauth/authorize' #URL for github's OAuth login
 )
 
@@ -40,7 +41,7 @@ def home():
     return render_template('home.html')
 
 @app.route('/login')
-def login():   
+def login():
     return github.authorize(callback=url_for('authorized', _external=True, _scheme='https'))
 
 @app.route('/logout')
@@ -48,17 +49,20 @@ def logout():
     session.clear()
     return render_template('message.html', message='You were logged out')
 
-@app.route()#the route should match the callback URL registered with the OAuth provider
+@app.route('/login/authorized')#the route should match the callback URL registered with the OAuth provider
 def authorized():
     resp = github.authorized_response()
     if resp is None:
         session.clear()
-        message = 'Access denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)      
+        message = 'Access denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)
     else:
         try:
-            #save user data and set log in message
+            session['github_token'] = (resp['access_token'], '')
+            session['user_data'] = github.get('user').data
+            message = "Congratualations, %s, you were successfully logged in!" % session['user_data']['login']
         except:
-            #clear the session and give error message
+            session.clear()
+            message = "Login could not be completed. Please try again later. \u2639"
     return render_template('message.html', message=message)
 
 
