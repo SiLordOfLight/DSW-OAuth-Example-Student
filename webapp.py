@@ -54,7 +54,7 @@ def authorized():
     resp = github.authorized_response()
     if resp is None:
         session.clear()
-        message = 'Access denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)
+        message = 'sthAccess denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)
     else:
         try:
             session['github_token'] = (resp['access_token'], '')
@@ -76,7 +76,11 @@ def renderPage1():
 
 @app.route('/page2')
 def renderPage2():
-    return render_template('page2.html')
+    if 'user_data' in session:
+        return render_template('page2.html', content=session['user_data']['public_repos'])
+    else:
+        return redirect(url_for('.login'))
+    
 
 @github.tokengetter
 def get_github_oauth_token():
