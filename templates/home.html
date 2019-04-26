@@ -3,13 +3,31 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-  <h1>Home</h1>
-  <ul>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+      {% if messages %}
+
+        <ul class=flashes>
+
+        {% for category, message in messages %}
+
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+
+        {% endfor %}
+
+        </ul>
+
+      {% endif %}
+
+    {% endwith %}
+
+    <h1>Home</h1>
+    <ul>
     <li><a href="/page1">That thing we do</a></li>
     <li><a href="/page2">The other thing</a></li>
-  </ul>
+    </ul>
 
-<p>This is a sample application to demonstrate authenticating against github oauth,
-using Flask, on Heroku.</p>
+    <p>This is a sample application to demonstrate authenticating against github oauth,
+    using Flask, on Heroku.</p>
 
 {% endblock %}

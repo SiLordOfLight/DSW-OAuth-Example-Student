@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, session, request, jsonify
+from flask import Flask, redirect, url_for, session, request, jsonify, flash
 from flask_oauthlib.client import OAuth
 from flask import render_template
 
@@ -18,6 +18,7 @@ app.secret_key = os.environ['SECRET_KEY']
 oauth = OAuth(app)
 oauth.init_app(app)
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT']='1'
 
 github = oauth.remote_app(
     'github',
@@ -38,16 +39,29 @@ def inject_logged_in():
 
 @app.route('/')
 def home():
+    if "do_flash" not in session:
+        session["do_flash"] = False
+        session["flash_message"] = ""
+        session["flash_mode"] = ""
+
+    if session["do_flash"]:
+        flash(session["flash_message"],session["flash_mode"])
+        session["do_flash"] = False
+        session["flash_message"] = ""
+        session["flash_mode"] = ""
     return render_template('home.html')
 
 @app.route('/login')
 def login():
-    return github.authorize(callback=url_for('authorized', _external=True, _scheme='https'))
+    return github.authorize(callback=url_for('authorized', _external=True, _scheme='http'))
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return render_template('message.html', message='You were logged out')
+    session["do_flash"] = True
+    session["flash_message"] = "You were logged out"
+    session["flash_mode"] = "warning"
+    return redirect(url_for('.home'))
 
 @app.route('/login/authorized')#the route should match the callback URL registered with the OAuth provider
 def authorized():
@@ -55,15 +69,24 @@ def authorized():
     if resp is None:
         session.clear()
         message = 'sthAccess denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)
+        session["do_flash"] = True
+        session["flash_message"] = message
+        session["flash_mode"] = "danger"
     else:
         try:
             session['github_token'] = (resp['access_token'], '')
             session['user_data'] = github.get('user').data
-            message = "Congratualations, %s, you were successfully logged in!" % session['user_data']['login']
+            message = "Congratulations, %s, you were successfully logged in!" % session['user_data']['login']
+            session["do_flash"] = True
+            session["flash_message"] = message
+            session["flash_mode"] = "success"
         except:
             session.clear()
             message = "Login could not be completed. Please try again later. \u2639"
-    return render_template('message.html', message=message)
+            session["do_flash"] = True
+            session["flash_message"] = message
+            session["flash_mode"] = "warning"
+    return redirect(url_for('.home'))
 
 
 @app.route('/page1')
@@ -80,7 +103,7 @@ def renderPage2():
         return render_template('page2.html', content=session['user_data']['public_repos'])
     else:
         return redirect(url_for('.login'))
-    
+
 
 @github.tokengetter
 def get_github_oauth_token():
